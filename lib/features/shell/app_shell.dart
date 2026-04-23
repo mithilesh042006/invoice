@@ -7,6 +7,7 @@ import '../dashboard/dashboard_providers.dart';
 import '../products/product_list_screen.dart';
 import '../invoices/invoice_list_screen.dart';
 import '../invoices/create_invoice_screen.dart';
+import '../settings/settings_screen.dart';
 
 /// The selected sidebar tab index.
 final selectedTabProvider = StateProvider<int>((ref) => 0);
@@ -53,6 +54,8 @@ class AppShell extends ConsumerWidget {
                 ),
                 // 3: Invoices
                 const InvoiceListScreen(),
+                // 4: Settings
+                const SettingsScreen(),
               ],
             ),
           ),
@@ -107,6 +110,7 @@ class _Sidebar extends ConsumerWidget {
           _NavItem(icon: Icons.inventory_2_outlined, label: 'Products', index: 1, selected: selectedIndex == 1, onTap: () => onSelected(1)),
           _NavItem(icon: Icons.add_shopping_cart, label: 'New Invoice', index: 2, selected: selectedIndex == 2, onTap: () => onSelected(2)),
           _NavItem(icon: Icons.receipt_long_outlined, label: 'Invoices', index: 3, selected: selectedIndex == 3, onTap: () => onSelected(3)),
+          _NavItem(icon: Icons.settings_outlined, label: 'Settings', index: 4, selected: selectedIndex == 4, onTap: () => onSelected(4)),
 
           const Spacer(),
 

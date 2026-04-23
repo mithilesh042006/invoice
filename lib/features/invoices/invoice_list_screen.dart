@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/models/invoice.dart';
+import '../../services/pdf_service.dart';
+import '../../data/repositories/invoice_repository.dart';
 import 'invoice_providers.dart';
 import 'invoice_detail_screen.dart';
 
@@ -127,17 +129,31 @@ class InvoiceListScreen extends ConsumerWidget {
                     ),
                   ),
                   DataCell(
-                    IconButton(
-                      icon: const Icon(Icons.visibility_outlined, size: 20),
-                      color: AppColors.info,
-                      tooltip: 'View Details',
-                      onPressed: () {
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) =>
-                              InvoiceDetailScreen(invoiceId: invoice.id),
-                        ));
-                      },
-                    ),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(
+                        icon: const Icon(Icons.visibility_outlined, size: 20),
+                        color: AppColors.info,
+                        tooltip: 'View Details',
+                        onPressed: () {
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) =>
+                                InvoiceDetailScreen(invoiceId: invoice.id),
+                          ));
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.save_alt, size: 20),
+                        color: AppColors.accent,
+                        tooltip: 'Export PDF',
+                        onPressed: () => _exportPdf(context, invoice),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.print, size: 20),
+                        color: AppColors.textSecondary,
+                        tooltip: 'Print',
+                        onPressed: () => _printInvoice(context, invoice),
+                      ),
+                    ]),
                   ),
                 ],
               );
@@ -145,6 +161,36 @@ class InvoiceListScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _exportPdf(BuildContext context, Invoice invoice) async {
+    final repo = InvoiceRepository();
+    final items = await repo.getInvoiceItems(invoice.id);
+    final payments = await repo.getInvoicePayments(invoice.id);
+
+    final path = await PdfService.savePdf(
+      invoice: invoice,
+      items: items,
+      payments: payments,
+    );
+
+    if (path != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF saved to: $path'), backgroundColor: AppColors.success),
+      );
+    }
+  }
+
+  Future<void> _printInvoice(BuildContext context, Invoice invoice) async {
+    final repo = InvoiceRepository();
+    final items = await repo.getInvoiceItems(invoice.id);
+    final payments = await repo.getInvoicePayments(invoice.id);
+
+    await PdfService.printInvoice(
+      invoice: invoice,
+      items: items,
+      payments: payments,
     );
   }
 }
