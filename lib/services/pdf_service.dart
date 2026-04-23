@@ -7,41 +7,46 @@ import '../core/utils/helpers.dart';
 import '../data/models/invoice.dart';
 import '../data/models/invoice_item.dart';
 import '../data/models/payment.dart';
+import '../data/repositories/invoice_repository.dart';
 
 class PdfService {
   PdfService._();
+
+  /// Load shop profile from DB.
+  static Future<Map<String, dynamic>> _loadShopProfile() async {
+    final repo = InvoiceRepository();
+    final profile = await repo.getShopProfile();
+    return profile ?? {
+      'shop_name': 'My Shop',
+      'address': '',
+      'phone': '',
+      'email': '',
+      'gstin': '',
+    };
+  }
 
   /// Print the invoice via the system print dialog.
   static Future<void> printInvoice({
     required Invoice invoice,
     required List<InvoiceItem> items,
     required List<Payment> payments,
-    String shopName = 'My Shop',
-    String shopAddress = '',
-    String shopPhone = '',
-    String? gstin,
   }) async {
-    final pdf = _buildPdf(
-      invoice: invoice, items: items, payments: payments,
-      shopName: shopName, shopAddress: shopAddress, shopPhone: shopPhone, gstin: gstin,
+    final profile = await _loadShopProfile();
+    final pdf = await _buildPdf(
+      invoice: invoice, items: items, payments: payments, profile: profile,
     );
     await Printing.layoutPdf(onLayout: (format) => pdf.save());
   }
 
   /// Save the invoice as a PDF file to a user-chosen location.
-  /// Returns the file path if saved, or null if cancelled.
   static Future<String?> savePdf({
     required Invoice invoice,
     required List<InvoiceItem> items,
     required List<Payment> payments,
-    String shopName = 'My Shop',
-    String shopAddress = '',
-    String shopPhone = '',
-    String? gstin,
   }) async {
-    final pdf = _buildPdf(
-      invoice: invoice, items: items, payments: payments,
-      shopName: shopName, shopAddress: shopAddress, shopPhone: shopPhone, gstin: gstin,
+    final profile = await _loadShopProfile();
+    final pdf = await _buildPdf(
+      invoice: invoice, items: items, payments: payments, profile: profile,
     );
 
     final bytes = await pdf.save();
@@ -61,17 +66,31 @@ class PdfService {
     return result;
   }
 
-  /// Build the PDF document (shared between print and save).
-  static pw.Document _buildPdf({
+  /// Build the PDF document matching Invoice_design.md specification.
+  static Future<pw.Document> _buildPdf({
     required Invoice invoice,
     required List<InvoiceItem> items,
     required List<Payment> payments,
-    String shopName = 'My Shop',
-    String shopAddress = '',
-    String shopPhone = '',
-    String? gstin,
-  }) {
+    required Map<String, dynamic> profile,
+  }) async {
     final pdf = pw.Document();
+
+    // Load a font that properly supports ₹ symbol
+    final font = await PdfGoogleFonts.notoSansRegular();
+    final fontBold = await PdfGoogleFonts.notoSansBold();
+
+    final baseStyle = pw.TextStyle(font: font, fontSize: 10);
+    final boldStyle = pw.TextStyle(font: fontBold, fontSize: 10);
+    final headerStyle = pw.TextStyle(font: fontBold, fontSize: 22);
+    final subHeaderStyle = pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey700);
+    final grandTotalStyle = pw.TextStyle(font: fontBold, fontSize: 13);
+
+    // Extract profile fields
+    final shopName = (profile['shop_name'] ?? 'My Shop').toString();
+    final address = (profile['address'] ?? '').toString();
+    final phone = (profile['phone'] ?? '').toString();
+    final email = (profile['email'] ?? '').toString();
+    final gstin = (profile['gstin'] ?? '').toString();
 
     pdf.addPage(pw.Page(
       pageFormat: PdfPageFormat.a4,
@@ -80,63 +99,140 @@ class PdfService {
         return pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Shop header
-            pw.Center(child: pw.Text(shopName, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold))),
-            if (shopAddress.isNotEmpty) pw.Center(child: pw.Text(shopAddress, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700))),
-            if (shopPhone.isNotEmpty) pw.Center(child: pw.Text('Phone: $shopPhone', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700))),
-            if (gstin != null && gstin.isNotEmpty) pw.Center(child: pw.Text('GSTIN: $gstin', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700))),
+            // ═══════════════════════════════════════════
+            // Section 1: Shop / Business Details (Header)
+            // ═══════════════════════════════════════════
+            pw.Center(child: pw.Text(shopName, style: headerStyle)),
+            pw.SizedBox(height: 4),
+            if (address.isNotEmpty)
+              pw.Center(child: pw.Text(address, style: subHeaderStyle)),
+            // Phone | Email | GSTIN on one line
+            _buildContactLine(phone: phone, email: email, gstin: gstin, style: subHeaderStyle),
             pw.SizedBox(height: 10),
-            pw.Divider(thickness: 2),
-            pw.SizedBox(height: 10),
+            pw.Divider(thickness: 2, color: PdfColors.grey800),
+            pw.SizedBox(height: 12),
 
-            // Invoice info
-            pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-              pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                pw.Text('Invoice: ${invoice.invoiceNumber}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                pw.Text('Date: ${formatDate(invoice.date)}', style: const pw.TextStyle(fontSize: 10)),
-              ]),
-              if (invoice.customerName != null) pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
-                pw.Text('Customer: ${invoice.customerName}', style: const pw.TextStyle(fontSize: 10)),
-                if (invoice.customerPhone != null) pw.Text('Phone: ${invoice.customerPhone}', style: const pw.TextStyle(fontSize: 10)),
-              ]),
-            ]),
-            pw.SizedBox(height: 20),
-
-            // Items table
-            pw.TableHelper.fromTextArray(
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
-              cellStyle: const pw.TextStyle(fontSize: 10),
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              cellPadding: const pw.EdgeInsets.all(6),
-              cellAlignments: {0: pw.Alignment.centerLeft, 1: pw.Alignment.center, 2: pw.Alignment.centerRight, 3: pw.Alignment.centerRight},
-              headers: ['Product', 'Qty', 'Unit Price', 'Total'],
-              data: items.map((item) => [
-                item.productName,
-                '${item.quantity}',
-                formatCurrency(item.unitPrice),
-                formatCurrency(item.lineTotal),
-              ]).toList(),
+            // ═══════════════════════════════════════════
+            // Section 2: Invoice Metadata + Customer
+            // ═══════════════════════════════════════════
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                  pw.Text('Invoice No: ${invoice.invoiceNumber}', style: pw.TextStyle(font: fontBold, fontSize: 13)),
+                  pw.SizedBox(height: 2),
+                  pw.Text('Date: ${formatDateTime(invoice.date)}', style: baseStyle),
+                ]),
+                if (invoice.customerName != null || invoice.customerPhone != null)
+                  pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+                    if (invoice.customerName != null)
+                      pw.Text('Customer: ${invoice.customerName}', style: boldStyle),
+                    if (invoice.customerPhone != null)
+                      pw.Text('Phone: ${invoice.customerPhone}', style: baseStyle),
+                  ]),
+              ],
             ),
-            pw.SizedBox(height: 10),
-            pw.Divider(),
-
-            // Totals
-            pw.Align(alignment: pw.Alignment.centerRight, child: pw.Container(
-              width: 200,
-              child: pw.Column(children: [
-                _pdfRow('Subtotal', formatCurrency(invoice.subtotal)),
-                if (invoice.discountAmount > 0) _pdfRow('Discount', '- ${formatCurrency(invoice.discountAmount)}'),
-                if (invoice.taxAmount > 0) _pdfRow('Tax (${invoice.taxPercent}%)', '+ ${formatCurrency(invoice.taxAmount)}'),
-                pw.Divider(),
-                _pdfRow('TOTAL', formatCurrency(invoice.total), bold: true),
-              ]),
-            )),
             pw.SizedBox(height: 16),
 
-            // Payment
-            pw.Text('Payment: ${payments.map((p) => '${p.method.toUpperCase()} — ${formatCurrency(p.amount)}').join(', ')}', style: const pw.TextStyle(fontSize: 10)),
+            // ═══════════════════════════════════════════
+            // Section 4: Item Table (with S.No)
+            // ═══════════════════════════════════════════
+            pw.TableHelper.fromTextArray(
+              headerStyle: pw.TextStyle(font: fontBold, fontSize: 10, color: PdfColors.white),
+              cellStyle: pw.TextStyle(font: font, fontSize: 10),
+              headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF333333)),
+              headerPadding: const pw.EdgeInsets.all(6),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+              cellAlignments: {
+                0: pw.Alignment.center,       // S.No
+                1: pw.Alignment.centerLeft,   // Product
+                2: pw.Alignment.center,       // Qty
+                3: pw.Alignment.centerRight,  // Price
+                4: pw.Alignment.centerRight,  // Total
+              },
+              columnWidths: {
+                0: const pw.FixedColumnWidth(40),
+                1: const pw.FlexColumnWidth(3),
+                2: const pw.FixedColumnWidth(50),
+                3: const pw.FlexColumnWidth(1.5),
+                4: const pw.FlexColumnWidth(1.5),
+              },
+              headers: ['S.No', 'Product', 'Qty', 'Price', 'Total'],
+              data: List.generate(items.length, (i) {
+                final item = items[i];
+                return [
+                  '${i + 1}',
+                  item.productName,
+                  '${item.quantity}',
+                  _fmtCurrency(item.unitPrice),
+                  _fmtCurrency(item.lineTotal),
+                ];
+              }),
+              oddRowDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF5F5F5)),
+            ),
+            pw.SizedBox(height: 12),
+
+            // ═══════════════════════════════════════════
+            // Section 5: Calculation Breakdown
+            // ═══════════════════════════════════════════
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Container(
+                width: 220,
+                child: pw.Column(children: [
+                  _pdfRow('Subtotal', _fmtCurrency(invoice.subtotal), style: baseStyle, boldStyle: boldStyle),
+                  if (invoice.discountAmount > 0)
+                    _pdfRow(
+                      'Discount${invoice.discountType == 'percent' ? ' (${invoice.discountValue}%)' : ''}',
+                      '- ${_fmtCurrency(invoice.discountAmount)}',
+                      style: baseStyle, boldStyle: boldStyle,
+                    ),
+                  if (invoice.taxAmount > 0)
+                    _pdfRow('Tax (${invoice.taxPercent}%)', '+ ${_fmtCurrency(invoice.taxAmount)}', style: baseStyle, boldStyle: boldStyle),
+                  pw.Divider(thickness: 1.5),
+                  pw.SizedBox(height: 2),
+                  _pdfRow('GRAND TOTAL', _fmtCurrency(invoice.total), style: baseStyle, boldStyle: grandTotalStyle, bold: true),
+                ]),
+              ),
+            ),
+            pw.SizedBox(height: 20),
+
+            // ═══════════════════════════════════════════
+            // Section 6: Payment Details
+            // ═══════════════════════════════════════════
+            pw.Divider(color: PdfColors.grey400),
+            pw.SizedBox(height: 8),
+            ...payments.map((p) {
+              final balance = p.amount - invoice.total;
+              return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                pw.Row(children: [
+                  pw.Text('Payment Mode: ', style: baseStyle),
+                  pw.Text(p.method.toUpperCase(), style: boldStyle),
+                ]),
+                pw.Row(children: [
+                  pw.Text('Amount Paid: ', style: baseStyle),
+                  pw.Text(_fmtCurrency(p.amount), style: boldStyle),
+                ]),
+                pw.Row(children: [
+                  pw.Text('Balance: ', style: baseStyle),
+                  pw.Text(_fmtCurrency(balance >= 0 ? balance : 0), style: boldStyle),
+                ]),
+              ]);
+            }),
+
+            // ═══════════════════════════════════════════
+            // Section 7: Footer
+            // ═══════════════════════════════════════════
             pw.Spacer(),
-            pw.Center(child: pw.Text('Thank you for your purchase!', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey600))),
+            pw.Divider(color: PdfColors.grey400),
+            pw.SizedBox(height: 8),
+            pw.Center(
+              child: pw.Text(
+                'Thank you for your business!',
+                style: pw.TextStyle(font: fontBold, fontSize: 12, color: PdfColors.grey600),
+              ),
+            ),
           ],
         );
       },
@@ -145,12 +241,36 @@ class PdfService {
     return pdf;
   }
 
-  static pw.Widget _pdfRow(String label, String value, {bool bold = false}) {
+  /// Format currency with ₹ symbol (using the Noto Sans font that supports it).
+  static String _fmtCurrency(double amount) => formatCurrency(amount);
+
+  /// Build the contact info line: Phone | Email | GSTIN
+  static pw.Widget _buildContactLine({
+    required String phone,
+    required String email,
+    required String gstin,
+    required pw.TextStyle style,
+  }) {
+    final parts = <String>[];
+    if (phone.isNotEmpty) parts.add('Phone: $phone');
+    if (email.isNotEmpty) parts.add('Email: $email');
+    if (gstin.isNotEmpty) parts.add('GSTIN: $gstin');
+
+    if (parts.isEmpty) return pw.SizedBox.shrink();
+    return pw.Center(child: pw.Text(parts.join('  |  '), style: style));
+  }
+
+  /// Summary row: label — value
+  static pw.Widget _pdfRow(String label, String value, {
+    required pw.TextStyle style,
+    required pw.TextStyle boldStyle,
+    bool bold = false,
+  }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 2),
       child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-        pw.Text(label, style: pw.TextStyle(fontSize: 10, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-        pw.Text(value, style: pw.TextStyle(fontSize: 10, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+        pw.Text(label, style: bold ? boldStyle : style),
+        pw.Text(value, style: bold ? boldStyle : style),
       ]),
     );
   }
