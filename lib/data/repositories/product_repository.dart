@@ -20,4 +20,6 @@ class ProductRepository {
   Future<void> deleteProduct(String id) => _dao.softDelete(id);
 
   Future<int> getActiveProductCount() => _dao.getActiveCount();
+
+  Future<Product?> getProductByBarcode(String barcode) => _dao.getByBarcode(barcode);
 }

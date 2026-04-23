@@ -3,13 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
 import '../../data/models/product.dart';
+import '../scanner/scanner_screen.dart';
 import 'product_providers.dart';
 
 /// Dialog for adding or editing a product.
 class ProductFormDialog extends ConsumerStatefulWidget {
   final Product? product; // null = add mode, non-null = edit mode
+  final String? initialBarcode; // pre-fill barcode from scanner
 
-  const ProductFormDialog({super.key, this.product});
+  const ProductFormDialog({super.key, this.product, this.initialBarcode});
 
   @override
   ConsumerState<ProductFormDialog> createState() => _ProductFormDialogState();
@@ -20,6 +22,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _priceController;
   late final TextEditingController _descriptionController;
+  late final TextEditingController _barcodeController;
   String? _selectedUnit;
   bool _isLoading = false;
 
@@ -36,6 +39,8 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     );
     _descriptionController =
         TextEditingController(text: widget.product?.description ?? '');
+    _barcodeController =
+        TextEditingController(text: widget.product?.barcode ?? widget.initialBarcode ?? '');
     _selectedUnit = widget.product?.unit;
   }
 
@@ -44,7 +49,21 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     _nameController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
+    _barcodeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _scanBarcode() async {
+    final scannedCode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const ScannerScreen()),
+    );
+
+    if (scannedCode != null && mounted) {
+      setState(() {
+        _barcodeController.text = scannedCode;
+      });
+    }
   }
 
   @override
@@ -61,7 +80,9 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
         ],
       ),
       content: SizedBox(
-        width: 420,
+        width: MediaQuery.of(context).size.width < 600
+            ? MediaQuery.of(context).size.width * 0.9
+            : 420,
         child: Form(
           key: _formKey,
           child: Column(
@@ -122,6 +143,37 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
               ),
               const SizedBox(height: 16),
 
+              // ── Barcode ──
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _barcodeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Barcode (optional)',
+                        hintText: 'e.g., 8901234567890',
+                        prefixIcon: Icon(Icons.qr_code, size: 20),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: IconButton.filled(
+                      onPressed: _scanBarcode,
+                      icon: const Icon(Icons.camera_alt, size: 20),
+                      tooltip: 'Scan Barcode',
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
               // ── Description ──
               TextFormField(
                 controller: _descriptionController,
@@ -161,6 +213,9 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     try {
       final notifier = ref.read(productListProvider.notifier);
       final price = double.parse(_priceController.text.trim());
+      final barcode = _barcodeController.text.trim().isEmpty
+          ? null
+          : _barcodeController.text.trim();
 
       if (isEditing) {
         await notifier.updateProduct(
@@ -171,6 +226,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
               ? null
               : _descriptionController.text,
           unit: _selectedUnit,
+          barcode: barcode,
         );
       } else {
         await notifier.addProduct(
@@ -180,6 +236,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
               ? null
               : _descriptionController.text,
           unit: _selectedUnit,
+          barcode: barcode,
         );
       }
 

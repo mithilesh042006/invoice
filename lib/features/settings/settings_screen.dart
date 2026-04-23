@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/responsive.dart';
 import '../../data/repositories/invoice_repository.dart';
 
 /// Provider for loading shop profile data.
@@ -89,18 +90,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(shopProfileProvider);
+    final mobile = Responsive.isMobile(context);
+    final padding = Responsive.screenPadding(context);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.settings, color: AppColors.primary, size: 28),
-            const SizedBox(width: 12),
-            Text('Settings', style: Theme.of(context).textTheme.headlineMedium),
+            Icon(Icons.settings, color: AppColors.primary, size: mobile ? 24 : 28),
+            const SizedBox(width: 10),
+            Text('Settings', style: mobile ? Theme.of(context).textTheme.titleLarge : Theme.of(context).textTheme.headlineMedium),
           ]),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           Expanded(
             child: profileAsync.when(
               data: (profile) {
@@ -133,38 +136,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               maxLines: 2,
                             ),
                             const SizedBox(height: 16),
-                            Row(children: [
-                              Expanded(child: _buildField(
-                                controller: _phoneCtrl,
-                                label: 'Phone',
-                                hint: 'Phone number',
-                                icon: Icons.phone_outlined,
-                              )),
-                              const SizedBox(width: 16),
-                              Expanded(child: _buildField(
-                                controller: _emailCtrl,
-                                label: 'Email',
-                                hint: 'Email address',
-                                icon: Icons.email_outlined,
-                              )),
-                            ]),
+                            if (mobile)
+                              Column(children: [
+                                _buildField(
+                                  controller: _phoneCtrl,
+                                  label: 'Phone',
+                                  hint: 'Phone number',
+                                  icon: Icons.phone_outlined,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildField(
+                                  controller: _emailCtrl,
+                                  label: 'Email',
+                                  hint: 'Email address',
+                                  icon: Icons.email_outlined,
+                                ),
+                              ])
+                            else
+                              Row(children: [
+                                Expanded(child: _buildField(
+                                  controller: _phoneCtrl,
+                                  label: 'Phone',
+                                  hint: 'Phone number',
+                                  icon: Icons.phone_outlined,
+                                )),
+                                const SizedBox(width: 16),
+                                Expanded(child: _buildField(
+                                  controller: _emailCtrl,
+                                  label: 'Email',
+                                  hint: 'Email address',
+                                  icon: Icons.email_outlined,
+                                )),
+                              ]),
 
                             const SizedBox(height: 32),
 
                             // Tax & Billing Section
                             _sectionHeader('Tax & Billing', Icons.receipt_long),
                             const SizedBox(height: 16),
-                            Row(children: [
-                              Expanded(child: _buildField(
-                                controller: _gstinCtrl,
-                                label: 'GSTIN',
-                                hint: 'GST Identification Number',
-                                icon: Icons.assignment_outlined,
-                              )),
-                              const SizedBox(width: 16),
-                              SizedBox(
-                                width: 160,
-                                child: _buildField(
+                            if (mobile)
+                              Column(children: [
+                                _buildField(
+                                  controller: _gstinCtrl,
+                                  label: 'GSTIN',
+                                  hint: 'GST Identification Number',
+                                  icon: Icons.assignment_outlined,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildField(
                                   controller: _taxCtrl,
                                   label: 'Default Tax %',
                                   hint: '0',
@@ -178,8 +197,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                     return null;
                                   },
                                 ),
-                              ),
-                            ]),
+                              ])
+                            else
+                              Row(children: [
+                                Expanded(child: _buildField(
+                                  controller: _gstinCtrl,
+                                  label: 'GSTIN',
+                                  hint: 'GST Identification Number',
+                                  icon: Icons.assignment_outlined,
+                                )),
+                                const SizedBox(width: 16),
+                                SizedBox(
+                                  width: 160,
+                                  child: _buildField(
+                                    controller: _taxCtrl,
+                                    label: 'Default Tax %',
+                                    hint: '0',
+                                    icon: Icons.percent,
+                                    keyboardType: TextInputType.number,
+                                    validator: (v) {
+                                      if (v != null && v.isNotEmpty) {
+                                        final n = double.tryParse(v);
+                                        if (n == null || n < 0 || n > 100) return 'Invalid %';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ]),
 
                             const SizedBox(height: 40),
 

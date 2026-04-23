@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/responsive.dart';
 import '../../services/sync_service.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../dashboard/dashboard_providers.dart';
@@ -24,40 +25,124 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedTab = ref.watch(selectedTabProvider);
+    final mobile = Responsive.isMobile(context);
 
+    final screens = [
+      const DashboardScreen(),
+      const ProductListScreen(),
+      CreateInvoiceScreen(
+        onInvoiceCreated: () {
+          ref.read(selectedTabProvider.notifier).state = 3;
+        },
+      ),
+      const InvoiceListScreen(),
+      const SettingsScreen(),
+    ];
+
+    if (mobile) {
+      return _MobileShell(
+        selectedTab: selectedTab,
+        screens: screens,
+        onTabSelected: (i) => ref.read(selectedTabProvider.notifier).state = i,
+      );
+    }
+
+    return _DesktopShell(
+      selectedTab: selectedTab,
+      screens: screens,
+      onTabSelected: (i) => ref.read(selectedTabProvider.notifier).state = i,
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  MOBILE SHELL — Bottom Navigation Bar
+// ════════════════════════════════════════════════════════════════════════
+class _MobileShell extends StatelessWidget {
+  final int selectedTab;
+  final List<Widget> screens;
+  final ValueChanged<int> onTabSelected;
+
+  const _MobileShell({
+    required this.selectedTab,
+    required this.screens,
+    required this.onTabSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(index: selectedTab, children: screens),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+        ),
+        child: NavigationBar(
+          selectedIndex: selectedTab,
+          onDestinationSelected: onTabSelected,
+          backgroundColor: AppColors.sidebarBg,
+          indicatorColor: AppColors.primary.withValues(alpha: 0.2),
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          height: 65,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined, color: AppColors.textSecondary),
+              selectedIcon: Icon(Icons.dashboard, color: AppColors.primary),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.inventory_2_outlined, color: AppColors.textSecondary),
+              selectedIcon: Icon(Icons.inventory_2, color: AppColors.primary),
+              label: 'Products',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.add_circle_outline, color: AppColors.textSecondary),
+              selectedIcon: Icon(Icons.add_circle, color: AppColors.accent),
+              label: 'New',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.receipt_long_outlined, color: AppColors.textSecondary),
+              selectedIcon: Icon(Icons.receipt_long, color: AppColors.primary),
+              label: 'Invoices',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined, color: AppColors.textSecondary),
+              selectedIcon: Icon(Icons.settings, color: AppColors.primary),
+              label: 'Settings',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  DESKTOP SHELL — Sidebar
+// ════════════════════════════════════════════════════════════════════════
+class _DesktopShell extends StatelessWidget {
+  final int selectedTab;
+  final List<Widget> screens;
+  final ValueChanged<int> onTabSelected;
+
+  const _DesktopShell({
+    required this.selectedTab,
+    required this.screens,
+    required this.onTabSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Row(
         children: [
-          // ── Sidebar ──
           _Sidebar(
             selectedIndex: selectedTab,
-            onSelected: (i) => ref.read(selectedTabProvider.notifier).state = i,
+            onSelected: onTabSelected,
           ),
-
-          // ── Divider ──
           const VerticalDivider(width: 1, thickness: 1, color: AppColors.border),
-
-          // ── Content ──
           Expanded(
-            child: IndexedStack(
-              index: selectedTab,
-              children: [
-                // 0: Dashboard
-                const DashboardScreen(),
-                // 1: Products
-                const ProductListScreen(),
-                // 2: New Invoice
-                CreateInvoiceScreen(
-                  onInvoiceCreated: () {
-                    ref.read(selectedTabProvider.notifier).state = 3;
-                  },
-                ),
-                // 3: Invoices
-                const InvoiceListScreen(),
-                // 4: Settings
-                const SettingsScreen(),
-              ],
-            ),
+            child: IndexedStack(index: selectedTab, children: screens),
           ),
         ],
       ),
@@ -65,6 +150,9 @@ class AppShell extends ConsumerWidget {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════════
+//  SIDEBAR (desktop only)
+// ════════════════════════════════════════════════════════════════════════
 class _Sidebar extends ConsumerWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
@@ -193,11 +281,9 @@ class _Sidebar extends ConsumerWidget {
     } else {
       ref.read(syncStatusProvider.notifier).state = SyncStatus.done;
       ref.read(syncMessageProvider.notifier).state = '${result.totalSynced} items synced';
-      // Refresh unsynced count
       ref.invalidate(unsyncedCountProvider);
     }
 
-    // Reset to idle after 5 seconds
     Future.delayed(const Duration(seconds: 5), () {
       if (ref.read(syncStatusProvider) != SyncStatus.syncing) {
         ref.read(syncStatusProvider.notifier).state = SyncStatus.idle;

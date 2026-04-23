@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/utils/responsive.dart';
 import 'dashboard_providers.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -11,8 +12,11 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final mobile = Responsive.isMobile(context);
+    final padding = Responsive.screenPadding(context);
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: padding,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           const Icon(Icons.dashboard, color: AppColors.primary, size: 28),
@@ -32,17 +36,24 @@ class DashboardScreen extends ConsumerWidget {
         const SizedBox(height: 20),
         Expanded(child: SingleChildScrollView(child: Column(children: [
           // Summary cards
-          _SummaryCards(),
+          _SummaryCards(mobile: mobile),
           const SizedBox(height: 20),
           // Payment breakdown
-          _PaymentBreakdown(),
+          _PaymentBreakdown(mobile: mobile),
           const SizedBox(height: 20),
-          // Charts row
-          SizedBox(height: 280, child: Row(children: [
-            Expanded(child: _DailySalesChart()),
-            const SizedBox(width: 20),
-            Expanded(child: _MonthlySalesChart()),
-          ])),
+          // Charts
+          if (mobile)
+            Column(children: [
+              SizedBox(height: 240, child: _DailySalesChart()),
+              const SizedBox(height: 16),
+              SizedBox(height: 240, child: _MonthlySalesChart()),
+            ])
+          else
+            SizedBox(height: 280, child: Row(children: [
+              Expanded(child: _DailySalesChart()),
+              const SizedBox(width: 20),
+              Expanded(child: _MonthlySalesChart()),
+            ])),
         ]))),
       ]),
     );
@@ -50,17 +61,37 @@ class DashboardScreen extends ConsumerWidget {
 }
 
 class _SummaryCards extends ConsumerWidget {
+  final bool mobile;
+  const _SummaryCards({required this.mobile});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(todaySummaryProvider);
     return summaryAsync.when(
-      data: (s) => Row(children: [
-        Expanded(child: _StatCard(title: "Today's Sales", value: formatCurrency(s.totalSales), icon: Icons.trending_up, color: AppColors.accent)),
-        const SizedBox(width: 16),
-        Expanded(child: _StatCard(title: 'Invoices', value: '${s.invoiceCount}', icon: Icons.receipt_long, color: AppColors.primary)),
-        const SizedBox(width: 16),
-        Expanded(child: _StatCard(title: 'Avg Invoice', value: formatCurrency(s.avgValue), icon: Icons.analytics, color: AppColors.warning)),
-      ]),
+      data: (s) {
+        final cards = [
+          _StatCard(title: "Today's Sales", value: formatCurrency(s.totalSales), icon: Icons.trending_up, color: AppColors.accent, compact: mobile),
+          _StatCard(title: 'Invoices', value: '${s.invoiceCount}', icon: Icons.receipt_long, color: AppColors.primary, compact: mobile),
+          _StatCard(title: 'Avg Invoice', value: formatCurrency(s.avgValue), icon: Icons.analytics, color: AppColors.warning, compact: mobile),
+        ];
+
+        if (mobile) {
+          return Column(children: [
+            for (int i = 0; i < cards.length; i++) ...[
+              cards[i],
+              if (i < cards.length - 1) const SizedBox(height: 10),
+            ],
+          ]);
+        }
+
+        return Row(children: [
+          Expanded(child: cards[0]),
+          const SizedBox(width: 16),
+          Expanded(child: cards[1]),
+          const SizedBox(width: 16),
+          Expanded(child: cards[2]),
+        ]);
+      },
       loading: () => const SizedBox(height: 100, child: Center(child: CircularProgressIndicator())),
       error: (e, _) => Text('Error: $e', style: const TextStyle(color: AppColors.error)),
     );
@@ -72,22 +103,23 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
-  const _StatCard({required this.title, required this.value, required this.icon, required this.color});
+  final bool compact;
+  const _StatCard({required this.title, required this.value, required this.icon, required this.color, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(padding: const EdgeInsets.all(20), child: Row(children: [
+      child: Padding(padding: EdgeInsets.all(compact ? 14 : 20), child: Row(children: [
         Container(
-          width: 48, height: 48,
+          width: compact ? 40 : 48, height: compact ? 40 : 48,
           decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, color: color, size: 24),
+          child: Icon(icon, color: color, size: compact ? 20 : 24),
         ),
         const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          Text(title, style: TextStyle(color: AppColors.textSecondary, fontSize: compact ? 12 : 13)),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w700)),
+          Text(value, style: TextStyle(color: color, fontSize: compact ? 18 : 22, fontWeight: FontWeight.w700)),
         ])),
       ])),
     );
@@ -95,18 +127,36 @@ class _StatCard extends StatelessWidget {
 }
 
 class _PaymentBreakdown extends ConsumerWidget {
+  final bool mobile;
+  const _PaymentBreakdown({required this.mobile});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final breakdownAsync = ref.watch(paymentBreakdownProvider);
     return breakdownAsync.when(
       data: (data) {
         final total = data.values.fold<double>(0, (a, b) => a + b);
+        final cards = [
+          _PaymentCard(label: 'Cash', amount: data['cash'] ?? 0, total: total, color: AppColors.cash, icon: Icons.payments),
+          _PaymentCard(label: 'UPI', amount: data['upi'] ?? 0, total: total, color: AppColors.upi, icon: Icons.phone_android),
+          _PaymentCard(label: 'Card', amount: data['card'] ?? 0, total: total, color: AppColors.card, icon: Icons.credit_card),
+        ];
+
+        if (mobile) {
+          return Column(children: [
+            for (int i = 0; i < cards.length; i++) ...[
+              cards[i],
+              if (i < cards.length - 1) const SizedBox(height: 8),
+            ],
+          ]);
+        }
+
         return Row(children: [
-          Expanded(child: _PaymentCard(label: 'Cash', amount: data['cash'] ?? 0, total: total, color: AppColors.cash, icon: Icons.payments)),
+          Expanded(child: cards[0]),
           const SizedBox(width: 16),
-          Expanded(child: _PaymentCard(label: 'UPI', amount: data['upi'] ?? 0, total: total, color: AppColors.upi, icon: Icons.phone_android)),
+          Expanded(child: cards[1]),
           const SizedBox(width: 16),
-          Expanded(child: _PaymentCard(label: 'Card', amount: data['card'] ?? 0, total: total, color: AppColors.card, icon: Icons.credit_card)),
+          Expanded(child: cards[2]),
         ]);
       },
       loading: () => const SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),

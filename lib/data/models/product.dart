@@ -5,6 +5,7 @@ class Product {
   final double price;
   final String? description;
   final String? unit; // "kg", "pcs", "liters", etc.
+  final String? barcode; // barcode value for scanning
   final bool isDeleted; // soft delete flag
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -15,6 +16,7 @@ class Product {
     required this.price,
     this.description,
     this.unit,
+    this.barcode,
     this.isDeleted = false,
     required this.createdAt,
     required this.updatedAt,
@@ -28,6 +30,7 @@ class Product {
       price: (map['price'] as num).toDouble(),
       description: map['description'] as String?,
       unit: map['unit'] as String?,
+      barcode: map['barcode'] as String?,
       isDeleted: (map['is_deleted'] as int? ?? 0) == 1,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
@@ -42,6 +45,7 @@ class Product {
       'price': price,
       'description': description,
       'unit': unit,
+      'barcode': barcode,
       'is_deleted': isDeleted ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -55,6 +59,7 @@ class Product {
     double? price,
     String? description,
     String? unit,
+    String? barcode,
     bool? isDeleted,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -65,6 +70,7 @@ class Product {
       price: price ?? this.price,
       description: description ?? this.description,
       unit: unit ?? this.unit,
+      barcode: barcode ?? this.barcode,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -72,5 +78,5 @@ class Product {
   }
 
   @override
-  String toString() => 'Product(id: $id, name: $name, price: $price)';
+  String toString() => 'Product(id: $id, name: $name, price: $price, barcode: $barcode)';
 }

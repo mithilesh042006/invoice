@@ -48,6 +48,7 @@ class DatabaseHelper {
         price REAL NOT NULL,
         description TEXT,
         unit TEXT,
+        barcode TEXT UNIQUE,
         is_deleted INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
@@ -136,6 +137,12 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE invoices ADD COLUMN synced_at TEXT');
       await db.execute('ALTER TABLE invoice_items ADD COLUMN synced_at TEXT');
       await db.execute('ALTER TABLE payments ADD COLUMN synced_at TEXT');
+    }
+    if (oldVersion < 3) {
+      // v2 → v3: Add barcode column for barcode scanning
+      // SQLite doesn't support UNIQUE in ALTER TABLE, so add column then create index
+      await db.execute('ALTER TABLE products ADD COLUMN barcode TEXT');
+      await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)');
     }
   }
 

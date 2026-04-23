@@ -57,6 +57,9 @@ dependencies:
   google_fonts: ^6.2.1
   file_picker: ^8.0.0
 
+  # Barcode Scanning (camera-based)
+  mobile_scanner: ^6.0.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

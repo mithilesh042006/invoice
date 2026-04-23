@@ -38,5 +38,5 @@ class AppConstants {
 
   // ── Database ──
   static const String databaseName = 'smart_shop_manager.db';
-  static const int databaseVersion = 2;
+  static const int databaseVersion = 3;
 }

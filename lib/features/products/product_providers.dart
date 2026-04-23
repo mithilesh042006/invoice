@@ -28,6 +28,7 @@ class ProductListNotifier extends AsyncNotifier<List<Product>> {
     required double price,
     String? description,
     String? unit,
+    String? barcode,
   }) async {
     final now = DateTime.now();
     final product = Product(
@@ -36,6 +37,7 @@ class ProductListNotifier extends AsyncNotifier<List<Product>> {
       price: price,
       description: description?.trim(),
       unit: unit?.trim(),
+      barcode: barcode?.trim(),
       createdAt: now,
       updatedAt: now,
     );
@@ -49,12 +51,14 @@ class ProductListNotifier extends AsyncNotifier<List<Product>> {
     required double price,
     String? description,
     String? unit,
+    String? barcode,
   }) async {
     final updated = existing.copyWith(
       name: name.trim(),
       price: price,
       description: description?.trim(),
       unit: unit?.trim(),
+      barcode: barcode?.trim(),
       updatedAt: DateTime.now(),
     );
     await _repository.updateProduct(updated);
@@ -82,7 +86,9 @@ final filteredProductListProvider = Provider<AsyncValue<List<Product>>>((ref) {
   return productsAsync.whenData((products) {
     if (query.isEmpty) return products;
     return products
-        .where((p) => p.name.toLowerCase().contains(query))
+        .where((p) =>
+            p.name.toLowerCase().contains(query) ||
+            (p.barcode != null && p.barcode!.contains(query)))
         .toList();
   });
 });

@@ -86,4 +86,17 @@ class ProductDao {
     );
     return Sqflite.firstIntValue(result) ?? 0;
   }
+
+  /// Look up an active product by barcode value.
+  Future<Product?> getByBarcode(String barcode) async {
+    final db = await _dbHelper.database;
+    final maps = await db.query(
+      'products',
+      where: 'barcode = ? AND is_deleted = 0',
+      whereArgs: [barcode],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return Product.fromMap(maps.first);
+  }
 }
