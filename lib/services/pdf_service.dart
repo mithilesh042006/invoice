@@ -3,6 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../core/utils/helpers.dart';
 import '../data/models/invoice.dart';
 import '../data/models/invoice_item.dart';
@@ -40,13 +41,14 @@ class PdfService {
 
   /// Save/share the invoice as a PDF.
   ///
-  /// - **Mobile (Android/iOS)**: Opens the native share sheet via `Printing.sharePdf()`.
-  ///   The user can save to Files, share via WhatsApp, email, etc.
+  /// - **Mobile (Android/iOS)**: Saves to Downloads folder and returns the path.
+  ///   Optionally also opens the share sheet if [share] is true.
   /// - **Desktop (Windows/Linux/macOS)**: Opens a file-save dialog via `FilePicker`.
   static Future<String?> savePdf({
     required Invoice invoice,
     required List<InvoiceItem> items,
     required List<Payment> payments,
+    bool share = false,
   }) async {
     final profile = await _loadShopProfile();
     final pdf = await _buildPdf(
@@ -56,10 +58,20 @@ class PdfService {
     final bytes = await pdf.save();
     final defaultName = '${invoice.invoiceNumber}.pdf';
 
-    // Mobile: use share sheet (works reliably on Android/iOS)
+    // Mobile: save to Downloads folder
     if (Platform.isAndroid || Platform.isIOS) {
-      await Printing.sharePdf(bytes: bytes, filename: defaultName);
-      return defaultName; // return filename as confirmation
+      if (share) {
+        // Share only
+        await Printing.sharePdf(bytes: bytes, filename: defaultName);
+        return defaultName;
+      }
+
+      // Save to device Downloads directory
+      final dir = await _getDownloadDirectory();
+      final filePath = '${dir.path}/$defaultName';
+      final file = File(filePath);
+      await file.writeAsBytes(bytes);
+      return filePath;
     }
 
     // Desktop: use file save dialog
@@ -75,6 +87,18 @@ class PdfService {
     final file = File(result);
     await file.writeAsBytes(bytes);
     return result;
+  }
+
+  /// Get the Downloads directory on mobile, falling back to app documents dir.
+  static Future<Directory> _getDownloadDirectory() async {
+    if (Platform.isAndroid) {
+      // Try common Android Downloads path first
+      final downloadsDir = Directory('/storage/emulated/0/Download');
+      if (await downloadsDir.exists()) return downloadsDir;
+    }
+    // Fallback: app documents directory
+    final appDir = await getApplicationDocumentsDirectory();
+    return appDir;
   }
 
   /// Build the PDF document matching Invoice_design.md specification.

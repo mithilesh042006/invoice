@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
@@ -397,30 +398,105 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
   }
 
   Future<void> _exportPdf(BuildContext context, Invoice invoice) async {
-    final repo = InvoiceRepository();
-    final items = await repo.getInvoiceItems(invoice.id);
-    final payments = await repo.getInvoicePayments(invoice.id);
+    final isMobile = Platform.isAndroid || Platform.isIOS;
 
-    try {
-      final result = await PdfService.savePdf(
-        invoice: invoice,
-        items: items,
-        payments: payments,
+    if (isMobile) {
+      // Show bottom sheet with Save / Share options
+      final action = await showModalBottomSheet<String>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+              ),
+              Text('Export ${invoice.invoiceNumber}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.download, color: AppColors.primary, size: 26),
+                title: const Text('Save to Device', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                subtitle: const Text('Save PDF to Downloads folder', style: TextStyle(fontSize: 13, color: AppColors.textHint)),
+                onTap: () => Navigator.pop(ctx, 'save'),
+              ),
+              const Divider(height: 1, indent: 56),
+              ListTile(
+                leading: const Icon(Icons.share, color: AppColors.accent, size: 26),
+                title: const Text('Share', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                subtitle: const Text('Share via WhatsApp, Email, etc.', style: TextStyle(fontSize: 13, color: AppColors.textHint)),
+                onTap: () => Navigator.pop(ctx, 'share'),
+              ),
+              const SizedBox(height: 8),
+            ]),
+          ),
+        ),
       );
 
-      if (result != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ PDF exported: $result'),
-            backgroundColor: AppColors.success,
-          ),
+      if (action == null || !context.mounted) return;
+
+      final repo = InvoiceRepository();
+      final items = await repo.getInvoiceItems(invoice.id);
+      final payments = await repo.getInvoicePayments(invoice.id);
+
+      try {
+        final result = await PdfService.savePdf(
+          invoice: invoice,
+          items: items,
+          payments: payments,
+          share: action == 'share',
         );
+
+        if (result != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(action == 'share'
+                  ? '✅ Shared: $result'
+                  : '✅ Saved to: $result'),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+          );
+        }
       }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+    } else {
+      // Desktop: direct file save dialog
+      final repo = InvoiceRepository();
+      final items = await repo.getInvoiceItems(invoice.id);
+      final payments = await repo.getInvoicePayments(invoice.id);
+
+      try {
+        final result = await PdfService.savePdf(
+          invoice: invoice,
+          items: items,
+          payments: payments,
         );
+
+        if (result != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ PDF exported: $result'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+          );
+        }
       }
     }
   }
