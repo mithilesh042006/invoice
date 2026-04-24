@@ -26,8 +26,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _addressCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
-  final _gstinCtrl = TextEditingController();
-  final _taxCtrl = TextEditingController();
   bool _saving = false;
   bool _loaded = false;
 
@@ -37,8 +35,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _addressCtrl.dispose();
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
-    _gstinCtrl.dispose();
-    _taxCtrl.dispose();
     super.dispose();
   }
 
@@ -48,8 +44,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _addressCtrl.text = profile['address']?.toString() ?? '';
     _phoneCtrl.text = profile['phone']?.toString() ?? '';
     _emailCtrl.text = profile['email']?.toString() ?? '';
-    _gstinCtrl.text = profile['gstin']?.toString() ?? '';
-    _taxCtrl.text = (profile['default_tax_percent'] ?? 0).toString();
     _loaded = true;
   }
 
@@ -65,8 +59,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'address': _addressCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
-        'gstin': _gstinCtrl.text.trim(),
-        'default_tax_percent': double.tryParse(_taxCtrl.text.trim()) ?? 0,
       });
 
       ref.invalidate(shopProfileProvider);
@@ -172,62 +164,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 )),
                               ]),
 
-                            const SizedBox(height: 16),
-
-                            // Tax & Billing Section
-                            _sectionHeader('Tax & Billing', Icons.receipt_long),
-                            const SizedBox(height: 12),
-                            if (mobile)
-                              Column(children: [
-                                _buildField(
-                                  controller: _gstinCtrl,
-                                  label: 'GSTIN',
-                                  hint: 'GST Identification Number',
-                                  icon: Icons.assignment_outlined,
-                                ),
-                                const SizedBox(height: 16),
-                                _buildField(
-                                  controller: _taxCtrl,
-                                  label: 'Default Tax %',
-                                  hint: '0',
-                                  icon: Icons.percent,
-                                  keyboardType: TextInputType.number,
-                                  validator: (v) {
-                                    if (v != null && v.isNotEmpty) {
-                                      final n = double.tryParse(v);
-                                      if (n == null || n < 0 || n > 100) return 'Invalid %';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ])
-                            else
-                              Row(children: [
-                                Expanded(child: _buildField(
-                                  controller: _gstinCtrl,
-                                  label: 'GSTIN',
-                                  hint: 'GST Identification Number',
-                                  icon: Icons.assignment_outlined,
-                                )),
-                                const SizedBox(width: 16),
-                                SizedBox(
-                                  width: 160,
-                                  child: _buildField(
-                                    controller: _taxCtrl,
-                                    label: 'Default Tax %',
-                                    hint: '0',
-                                    icon: Icons.percent,
-                                    keyboardType: TextInputType.number,
-                                    validator: (v) {
-                                      if (v != null && v.isNotEmpty) {
-                                        final n = double.tryParse(v);
-                                        if (n == null || n < 0 || n > 100) return 'Invalid %';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                              ]),
 
                             const SizedBox(height: 20),
 
