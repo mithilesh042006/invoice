@@ -108,9 +108,9 @@ class _SummaryCards extends ConsumerWidget {
 
   static Widget _miniStat(String label, String value, Color color) {
     return Expanded(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w700)),
+      Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w700)),
       const SizedBox(height: 2),
-      Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10), overflow: TextOverflow.ellipsis),
+      Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12), overflow: TextOverflow.ellipsis),
     ]));
   }
 
@@ -194,9 +194,9 @@ class _PaymentBreakdown extends ConsumerWidget {
 
   static Widget _payChip(String label, double amount, Color color) {
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+      Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 2),
-      Text(formatCurrency(amount), style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700)),
+      Text(formatCurrency(amount), style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w700)),
     ]);
   }
 }

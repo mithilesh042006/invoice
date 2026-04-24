@@ -144,7 +144,7 @@ class ProductListScreen extends ConsumerWidget {
               Expanded(
                 child: Text(
                   product.name,
-                  style: const TextStyle(fontWeight: FontWeight.w500, color: AppColors.textPrimary, fontSize: 14),
+                  style: const TextStyle(fontWeight: FontWeight.w500, color: AppColors.textPrimary, fontSize: 16),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -153,14 +153,14 @@ class ProductListScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
                   formatCurrency(product.price),
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.accent, fontSize: 14),
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.accent, fontSize: 16),
                 ),
               ),
               // Edit
               SizedBox(
-                width: 32, height: 32,
+                width: 34, height: 34,
                 child: IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  icon: const Icon(Icons.edit_outlined, size: 20),
                   color: AppColors.info,
                   padding: EdgeInsets.zero,
                   onPressed: () => _showProductForm(context, ref, product: product),
@@ -168,9 +168,9 @@ class ProductListScreen extends ConsumerWidget {
               ),
               // Delete
               SizedBox(
-                width: 32, height: 32,
+                width: 34, height: 34,
                 child: IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 18),
+                  icon: const Icon(Icons.delete_outline, size: 20),
                   color: AppColors.error,
                   padding: EdgeInsets.zero,
                   onPressed: () => _confirmDelete(context, ref, product),

@@ -79,22 +79,22 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               controller: _searchCtrl,
               decoration: const InputDecoration(
                 hintText: 'Search products...',
-                prefixIcon: Icon(Icons.search, size: 18),
+                prefixIcon: Icon(Icons.search, size: 20),
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 8),
               ),
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: 15),
               onChanged: (_) => setState(() {}),
             ),
           ),
         ),
         const SizedBox(width: 8),
         SizedBox(
-          height: 40,
+          height: 42,
           child: ElevatedButton.icon(
             onPressed: _scanAndAddProduct,
-            icon: const Icon(Icons.qr_code_scanner, size: 16),
-            label: const Text('Scan', style: TextStyle(fontSize: 13)),
+            icon: const Icon(Icons.qr_code_scanner, size: 18),
+            label: const Text('Scan', style: TextStyle(fontSize: 14)),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
@@ -137,10 +137,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                     child: Row(children: [
-                      Expanded(child: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis)),
-                      Text(formatCurrency(p.price), style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 13)),
+                      Expanded(child: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis)),
+                      Text(formatCurrency(p.price), style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 15)),
                       const SizedBox(width: 8),
-                      const Icon(Icons.add_circle, color: AppColors.primary, size: 22),
+                      const Icon(Icons.add_circle, color: AppColors.primary, size: 24),
                     ]),
                   ),
                 );
@@ -158,13 +158,13 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
           child: Row(children: [
-            const Icon(Icons.shopping_cart, size: 16, color: AppColors.primary),
+            const Icon(Icons.shopping_cart, size: 18, color: AppColors.primary),
             const SizedBox(width: 6),
-            Text('Cart (${cart.length})', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.primary)),
+            Text('Cart (${cart.length})', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.primary)),
             const Spacer(),
             GestureDetector(
               onTap: () => ref.read(cartProvider.notifier).clearCart(),
-              child: const Text('Clear', style: TextStyle(color: AppColors.error, fontSize: 12)),
+              child: const Text('Clear', style: TextStyle(color: AppColors.error, fontSize: 14)),
             ),
           ]),
         ),
@@ -185,23 +185,23 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       child: Row(children: [
         Expanded(
-          child: Text(item.productName, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis),
+          child: Text(item.productName, style: const TextStyle(fontSize: 15, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis),
         ),
         _qtyBtn(Icons.remove, () => ref.read(cartProvider.notifier).updateQuantity(item.productId, item.quantity - 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          child: Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
         ),
         _qtyBtn(Icons.add, () => ref.read(cartProvider.notifier).updateQuantity(item.productId, item.quantity + 1)),
         const SizedBox(width: 8),
         SizedBox(
-          width: 60,
-          child: Text(formatCurrency(item.lineTotal), textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.accent, fontSize: 13)),
+          width: 65,
+          child: Text(formatCurrency(item.lineTotal), textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.accent, fontSize: 15)),
         ),
         SizedBox(
-          width: 24,
+          width: 26,
           child: IconButton(
-            icon: const Icon(Icons.close, size: 14),
+            icon: const Icon(Icons.close, size: 16),
             color: AppColors.error,
             padding: EdgeInsets.zero,
             onPressed: () => ref.read(cartProvider.notifier).removeItem(item.productId),
@@ -221,8 +221,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
         // TOTAL + Payment row
         Row(children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            const Text('TOTAL', style: TextStyle(fontSize: 9, color: AppColors.textHint, fontWeight: FontWeight.w600)),
-            Text(formatCurrency(calc.total), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.accent)),
+            const Text('TOTAL', style: TextStyle(fontSize: 11, color: AppColors.textHint, fontWeight: FontWeight.w600)),
+            Text(formatCurrency(calc.total), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.accent)),
           ]),
           const Spacer(),
         ]),
@@ -237,26 +237,26 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               child: GestureDetector(
                 onTap: () => ref.read(paymentMethodProvider.notifier).state = m.name,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
                     color: sel ? c.withValues(alpha: 0.2) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: sel ? c : AppColors.border, width: sel ? 1.5 : 1),
                   ),
-                  child: Text(m.label, style: TextStyle(color: sel ? c : AppColors.textSecondary, fontWeight: sel ? FontWeight.w700 : FontWeight.w400, fontSize: 12)),
+                  child: Text(m.label, style: TextStyle(color: sel ? c : AppColors.textSecondary, fontWeight: sel ? FontWeight.w700 : FontWeight.w400, fontSize: 14)),
                 ),
               ),
             );
           }),
           const Spacer(),
           SizedBox(
-            height: 38,
+            height: 40,
             child: ElevatedButton.icon(
               onPressed: cart.isEmpty || _isCreating ? null : _generate,
               icon: _isCreating
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.receipt, size: 16),
-              label: Text(_isCreating ? '...' : 'Generate', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.receipt, size: 18),
+              label: Text(_isCreating ? '...' : 'Generate', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,
                 foregroundColor: Colors.black,
