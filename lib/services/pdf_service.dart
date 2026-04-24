@@ -38,7 +38,11 @@ class PdfService {
     await Printing.layoutPdf(onLayout: (format) => pdf.save());
   }
 
-  /// Save the invoice as a PDF file to a user-chosen location.
+  /// Save/share the invoice as a PDF.
+  ///
+  /// - **Mobile (Android/iOS)**: Opens the native share sheet via `Printing.sharePdf()`.
+  ///   The user can save to Files, share via WhatsApp, email, etc.
+  /// - **Desktop (Windows/Linux/macOS)**: Opens a file-save dialog via `FilePicker`.
   static Future<String?> savePdf({
     required Invoice invoice,
     required List<InvoiceItem> items,
@@ -52,6 +56,13 @@ class PdfService {
     final bytes = await pdf.save();
     final defaultName = '${invoice.invoiceNumber}.pdf';
 
+    // Mobile: use share sheet (works reliably on Android/iOS)
+    if (Platform.isAndroid || Platform.isIOS) {
+      await Printing.sharePdf(bytes: bytes, filename: defaultName);
+      return defaultName; // return filename as confirmation
+    }
+
+    // Desktop: use file save dialog
     final result = await FilePicker.platform.saveFile(
       dialogTitle: 'Save Invoice PDF',
       fileName: defaultName,

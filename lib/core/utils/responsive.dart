@@ -12,7 +12,7 @@ class Responsive {
   static bool isMobile(BuildContext context) =>
       MediaQuery.of(context).size.width < mobileBreakpoint;
 
-  /// Returns adaptive padding: 16 on mobile, 24 on desktop.
+  /// Returns adaptive padding: 12 on mobile, 24 on desktop.
   static EdgeInsets screenPadding(BuildContext context) =>
-      EdgeInsets.all(isMobile(context) ? 16 : 24);
+      EdgeInsets.all(isMobile(context) ? 12 : 24);
 }

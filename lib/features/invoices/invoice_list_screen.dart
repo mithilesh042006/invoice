@@ -92,64 +92,56 @@ class InvoiceListScreen extends ConsumerWidget {
     );
   }
 
-  // ── Mobile: Card List ──
+  // ── Mobile: Compact Rows ──
   Widget _buildInvoiceCards(
       BuildContext context, WidgetRef ref, List<Invoice> invoices) {
     return ListView.separated(
       itemCount: invoices.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border.withValues(alpha: 0.5)),
       itemBuilder: (_, i) {
         final invoice = invoices[i];
-        return Card(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => InvoiceDetailScreen(invoiceId: invoice.id),
-            )),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(invoice.invoiceNumber, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13)),
-                    ),
+        return InkWell(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => InvoiceDetailScreen(invoiceId: invoice.id),
+          )),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Line 1: Invoice # + Total
+                Row(children: [
+                  Text(invoice.invoiceNumber, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 14)),
+                  const Spacer(),
+                  Text(formatCurrency(invoice.total), style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 15)),
+                ]),
+                const SizedBox(height: 4),
+                // Line 2: Date + Customer + Actions
+                Row(children: [
+                  Text(formatDate(invoice.date), style: const TextStyle(color: AppColors.textHint, fontSize: 12)),
+                  if (invoice.customerName != null && invoice.customerName!.isNotEmpty) ...[
+                    const Text(' · ', style: TextStyle(color: AppColors.textHint, fontSize: 12)),
+                    Expanded(child: Text(invoice.customerName!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                  ] else
                     const Spacer(),
-                    Text(formatCurrency(invoice.total), style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 16)),
-                  ]),
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    const Icon(Icons.calendar_today, size: 14, color: AppColors.textHint),
-                    const SizedBox(width: 6),
-                    Text(formatDate(invoice.date), style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                    const SizedBox(width: 16),
-                    if (invoice.customerName != null && invoice.customerName!.isNotEmpty) ...[
-                      const Icon(Icons.person, size: 14, color: AppColors.textHint),
-                      const SizedBox(width: 6),
-                      Expanded(child: Text(invoice.customerName!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13), overflow: TextOverflow.ellipsis)),
-                    ],
-                  ]),
-                  const SizedBox(height: 8),
-                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                    IconButton(
-                      icon: const Icon(Icons.save_alt, size: 20), color: AppColors.accent, tooltip: 'Export PDF',
-                      visualDensity: VisualDensity.compact,
+                  SizedBox(
+                    width: 28, height: 28,
+                    child: IconButton(
+                      icon: const Icon(Icons.save_alt, size: 16), color: AppColors.accent,
+                      padding: EdgeInsets.zero,
                       onPressed: () => _exportPdf(context, invoice),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.print, size: 20), color: AppColors.textSecondary, tooltip: 'Print',
-                      visualDensity: VisualDensity.compact,
+                  ),
+                  SizedBox(
+                    width: 28, height: 28,
+                    child: IconButton(
+                      icon: const Icon(Icons.print, size: 16), color: AppColors.textSecondary,
+                      padding: EdgeInsets.zero,
                       onPressed: () => _printInvoice(context, invoice),
                     ),
-                  ]),
-                ],
-              ),
+                  ),
+                ]),
+              ],
             ),
           ),
         );
@@ -240,16 +232,27 @@ class InvoiceListScreen extends ConsumerWidget {
     final items = await repo.getInvoiceItems(invoice.id);
     final payments = await repo.getInvoicePayments(invoice.id);
 
-    final path = await PdfService.savePdf(
-      invoice: invoice,
-      items: items,
-      payments: payments,
-    );
-
-    if (path != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('PDF saved to: $path'), backgroundColor: AppColors.success),
+    try {
+      final result = await PdfService.savePdf(
+        invoice: invoice,
+        items: items,
+        payments: payments,
       );
+
+      if (result != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ PDF exported: $result'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 

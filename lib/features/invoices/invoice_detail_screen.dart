@@ -25,15 +25,23 @@ class InvoiceDetailScreen extends ConsumerWidget {
                   icon: const Icon(Icons.save_alt),
                   tooltip: 'Export as PDF',
                   onPressed: () async {
-                    final path = await PdfService.savePdf(
-                      invoice: detail.invoice,
-                      items: detail.items,
-                      payments: detail.payments,
-                    );
-                    if (path != null && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('PDF saved to: $path'), backgroundColor: AppColors.success),
+                    try {
+                      final result = await PdfService.savePdf(
+                        invoice: detail.invoice,
+                        items: detail.items,
+                        payments: detail.payments,
                       );
+                      if (result != null && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('✅ PDF exported: $result'), backgroundColor: AppColors.success),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+                        );
+                      }
                     }
                   },
                 ),
@@ -60,14 +68,18 @@ class InvoiceDetailScreen extends ConsumerWidget {
           final items = detail.items;
           final payments = detail.payments;
 
+          final isMobile = MediaQuery.of(context).size.width < 600;
+          final outerPad = isMobile ? 12.0 : 32.0;
+          final innerPad = isMobile ? 16.0 : 32.0;
+
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(32),
+            padding: EdgeInsets.all(outerPad),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 700),
                 child: Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(32),
+                    padding: EdgeInsets.all(innerPad),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -75,21 +87,24 @@ class InvoiceDetailScreen extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(inv.invoiceNumber, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                                const SizedBox(height: 4),
-                                Text(formatDateTime(inv.date), style: const TextStyle(color: AppColors.textSecondary)),
-                              ],
+                            Flexible(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(inv.invoiceNumber, style: TextStyle(fontSize: isMobile ? 18 : 24, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                                  const SizedBox(height: 4),
+                                  Text(formatDateTime(inv.date), style: const TextStyle(color: AppColors.textSecondary)),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 16, vertical: isMobile ? 6 : 8),
                               decoration: BoxDecoration(
                                 color: AppColors.accent.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Text(formatCurrency(inv.total), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.accent)),
+                              child: Text(formatCurrency(inv.total), style: TextStyle(fontSize: isMobile ? 16 : 20, fontWeight: FontWeight.w700, color: AppColors.accent)),
                             ),
                           ],
                         ),
@@ -104,26 +119,33 @@ class InvoiceDetailScreen extends ConsumerWidget {
                         const Text('Items', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         Table(
-                          columnWidths: const {
-                            0: FlexColumnWidth(3),
-                            1: FixedColumnWidth(60),
-                            2: FlexColumnWidth(2),
-                            3: FlexColumnWidth(2),
-                          },
+                          columnWidths: isMobile
+                              ? const {
+                                  0: FlexColumnWidth(2.5),
+                                  1: FixedColumnWidth(40),
+                                  2: FlexColumnWidth(1.5),
+                                  3: FlexColumnWidth(1.5),
+                                }
+                              : const {
+                                  0: FlexColumnWidth(3),
+                                  1: FixedColumnWidth(60),
+                                  2: FlexColumnWidth(2),
+                                  3: FlexColumnWidth(2),
+                                },
                           border: TableBorder(horizontalInside: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
                           children: [
                             TableRow(
                               decoration: BoxDecoration(color: AppColors.surfaceLight),
                               children: ['Product', 'Qty', 'Price', 'Total'].map((h) => Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Text(h, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary, fontSize: 13)),
+                                padding: EdgeInsets.all(isMobile ? 6 : 10),
+                                child: Text(h, style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary, fontSize: isMobile ? 11 : 13)),
                               )).toList(),
                             ),
                             ...items.map((item) => TableRow(children: [
-                              Padding(padding: const EdgeInsets.all(10), child: Text(item.productName)),
-                              Padding(padding: const EdgeInsets.all(10), child: Text('${item.quantity}')),
-                              Padding(padding: const EdgeInsets.all(10), child: Text(formatCurrency(item.unitPrice))),
-                              Padding(padding: const EdgeInsets.all(10), child: Text(formatCurrency(item.lineTotal), style: const TextStyle(fontWeight: FontWeight.w500))),
+                              Padding(padding: EdgeInsets.all(isMobile ? 6 : 10), child: Text(item.productName, style: TextStyle(fontSize: isMobile ? 12 : 14))),
+                              Padding(padding: EdgeInsets.all(isMobile ? 6 : 10), child: Text('${item.quantity}', style: TextStyle(fontSize: isMobile ? 12 : 14))),
+                              Padding(padding: EdgeInsets.all(isMobile ? 6 : 10), child: Text(formatCurrency(item.unitPrice), style: TextStyle(fontSize: isMobile ? 12 : 14))),
+                              Padding(padding: EdgeInsets.all(isMobile ? 6 : 10), child: Text(formatCurrency(item.lineTotal), style: TextStyle(fontWeight: FontWeight.w500, fontSize: isMobile ? 12 : 14))),
                             ])),
                           ],
                         ),
@@ -139,19 +161,23 @@ class InvoiceDetailScreen extends ConsumerWidget {
                         _summaryRow('Total', formatCurrency(inv.total), isBold: true, color: AppColors.accent, fontSize: 18),
                         const SizedBox(height: 16),
 
-                        // Payment
-                        Row(children: [
-                          const Text('Paid via: ', style: TextStyle(color: AppColors.textSecondary)),
-                          ...payments.map((p) {
-                            Color c = p.method == 'cash' ? AppColors.cash : p.method == 'upi' ? AppColors.upi : AppColors.card;
-                            return Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(color: c.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6), border: Border.all(color: c)),
-                              child: Text('${p.method.toUpperCase()} — ${formatCurrency(p.amount)}', style: TextStyle(color: c, fontWeight: FontWeight.w600)),
-                            );
-                          }),
-                        ]),
+                        // Payment — use Wrap so chips don't overflow on mobile
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            const Text('Paid via: ', style: TextStyle(color: AppColors.textSecondary)),
+                            ...payments.map((p) {
+                              Color c = p.method == 'cash' ? AppColors.cash : p.method == 'upi' ? AppColors.upi : AppColors.card;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(color: c.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6), border: Border.all(color: c)),
+                                child: Text('${p.method.toUpperCase()} — ${formatCurrency(p.amount)}', style: TextStyle(color: c, fontWeight: FontWeight.w600, fontSize: isMobile ? 12 : 14)),
+                              );
+                            }),
+                          ],
+                        ),
                       ],
                     ),
                   ),

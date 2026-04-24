@@ -72,7 +72,9 @@ class _MobileShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: selectedTab, children: screens),
+      body: SafeArea(
+        child: screens[selectedTab],
+      ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border, width: 1)),
@@ -83,31 +85,31 @@ class _MobileShell extends StatelessWidget {
           backgroundColor: AppColors.sidebarBg,
           indicatorColor: AppColors.primary.withValues(alpha: 0.2),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          height: 65,
+          height: 60,
           destinations: const [
             NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined, color: AppColors.textSecondary),
-              selectedIcon: Icon(Icons.dashboard, color: AppColors.primary),
+              icon: Icon(Icons.dashboard_outlined, color: AppColors.textSecondary, size: 22),
+              selectedIcon: Icon(Icons.dashboard, color: AppColors.primary, size: 22),
               label: 'Home',
             ),
             NavigationDestination(
-              icon: Icon(Icons.inventory_2_outlined, color: AppColors.textSecondary),
-              selectedIcon: Icon(Icons.inventory_2, color: AppColors.primary),
+              icon: Icon(Icons.inventory_2_outlined, color: AppColors.textSecondary, size: 22),
+              selectedIcon: Icon(Icons.inventory_2, color: AppColors.primary, size: 22),
               label: 'Products',
             ),
             NavigationDestination(
-              icon: Icon(Icons.add_circle_outline, color: AppColors.textSecondary),
-              selectedIcon: Icon(Icons.add_circle, color: AppColors.accent),
+              icon: Icon(Icons.add_circle_outline, color: AppColors.textSecondary, size: 22),
+              selectedIcon: Icon(Icons.add_circle, color: AppColors.accent, size: 22),
               label: 'New',
             ),
             NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined, color: AppColors.textSecondary),
-              selectedIcon: Icon(Icons.receipt_long, color: AppColors.primary),
+              icon: Icon(Icons.receipt_long_outlined, color: AppColors.textSecondary, size: 22),
+              selectedIcon: Icon(Icons.receipt_long, color: AppColors.primary, size: 22),
               label: 'Invoices',
             ),
             NavigationDestination(
-              icon: Icon(Icons.settings_outlined, color: AppColors.textSecondary),
-              selectedIcon: Icon(Icons.settings, color: AppColors.primary),
+              icon: Icon(Icons.settings_outlined, color: AppColors.textSecondary, size: 22),
+              selectedIcon: Icon(Icons.settings, color: AppColors.primary, size: 22),
               label: 'Settings',
             ),
           ],

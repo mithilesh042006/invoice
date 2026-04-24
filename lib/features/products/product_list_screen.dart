@@ -52,25 +52,21 @@ class ProductListScreen extends ConsumerWidget {
 
   Widget _buildHeader(BuildContext context, WidgetRef ref, bool mobile) {
     if (mobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            const Icon(Icons.inventory_2_outlined, color: AppColors.primary, size: 24),
-            const SizedBox(width: 10),
-            Text('Products', style: Theme.of(context).textTheme.titleLarge),
-          ]),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _showProductForm(context, ref),
-              icon: const Icon(Icons.add, size: 20),
-              label: const Text('Add Product'),
-            ),
+      return Row(children: [
+        const Icon(Icons.inventory_2_outlined, color: AppColors.primary, size: 22),
+        const SizedBox(width: 8),
+        Text('Products', style: Theme.of(context).textTheme.titleLarge),
+        const Spacer(),
+        SizedBox(
+          height: 36,
+          child: ElevatedButton.icon(
+            onPressed: () => _showProductForm(context, ref),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add', style: TextStyle(fontSize: 13)),
+            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
           ),
-        ],
-      );
+        ),
+      ]);
     }
 
     return Row(
@@ -131,115 +127,56 @@ class ProductListScreen extends ConsumerWidget {
     );
   }
 
-  // ── Mobile: Card List ──
+  // ── Mobile: Compact Rows ──
   Widget _buildProductCards(BuildContext context, WidgetRef ref, List<Product> products) {
     return ListView.separated(
       itemCount: products.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border.withValues(alpha: 0.5)),
       itemBuilder: (context, index) {
         final product = products[index];
-        return Card(
+        return InkWell(
+          onTap: () => _showProductForm(context, ref, product: product),
+          onLongPress: () => _confirmDelete(context, ref, product),
           child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Product icon
-                    Container(
-                      width: 40, height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.inventory_2, color: AppColors.primary, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    // Name & description
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            product.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                              fontSize: 15,
-                            ),
-                          ),
-                          if (product.description != null && product.description!.isNotEmpty)
-                            Text(
-                              product.description!,
-                              style: const TextStyle(fontSize: 12, color: AppColors.textHint),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ),
-                    ),
-                    // Price
-                    Text(
-                      formatCurrency(product.price),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.accent,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            child: Row(children: [
+              // Product name
+              Expanded(
+                child: Text(
+                  product.name,
+                  style: const TextStyle(fontWeight: FontWeight.w500, color: AppColors.textPrimary, fontSize: 14),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 10),
-                // Bottom row: unit + barcode + actions
-                Row(
-                  children: [
-                    if (product.unit != null && product.unit!.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          product.unit!,
-                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                        ),
-                      ),
-                    if (product.barcode != null && product.barcode!.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.qr_code, size: 12, color: AppColors.accent),
-                          const SizedBox(width: 4),
-                          Text(product.barcode!, style: const TextStyle(fontSize: 11, color: AppColors.accent)),
-                        ]),
-                      ),
-                    ],
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 20),
-                      color: AppColors.info,
-                      tooltip: 'Edit',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => _showProductForm(context, ref, product: product),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 20),
-                      color: AppColors.error,
-                      tooltip: 'Delete',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => _confirmDelete(context, ref, product),
-                    ),
-                  ],
+              ),
+              // Price
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  formatCurrency(product.price),
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.accent, fontSize: 14),
                 ),
-              ],
-            ),
+              ),
+              // Edit
+              SizedBox(
+                width: 32, height: 32,
+                child: IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  color: AppColors.info,
+                  padding: EdgeInsets.zero,
+                  onPressed: () => _showProductForm(context, ref, product: product),
+                ),
+              ),
+              // Delete
+              SizedBox(
+                width: 32, height: 32,
+                child: IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  color: AppColors.error,
+                  padding: EdgeInsets.zero,
+                  onPressed: () => _confirmDelete(context, ref, product),
+                ),
+              ),
+            ]),
           ),
         );
       },

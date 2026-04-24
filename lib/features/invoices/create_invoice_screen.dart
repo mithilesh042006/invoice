@@ -23,19 +23,11 @@ class CreateInvoiceScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
-  final _customerNameCtrl = TextEditingController();
-  final _customerPhoneCtrl = TextEditingController();
-  final _discountCtrl = TextEditingController(text: '0');
-  final _taxCtrl = TextEditingController(text: '0');
   final _searchCtrl = TextEditingController();
   bool _isCreating = false;
 
   @override
   void dispose() {
-    _customerNameCtrl.dispose();
-    _customerPhoneCtrl.dispose();
-    _discountCtrl.dispose();
-    _taxCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -51,21 +43,13 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(Icons.add_shopping_cart, color: AppColors.primary, size: mobile ? 24 : 28),
-            const SizedBox(width: 10),
+            Icon(Icons.add_shopping_cart, color: AppColors.primary, size: mobile ? 22 : 28),
+            const SizedBox(width: 8),
             Text('New Invoice', style: mobile ? Theme.of(context).textTheme.titleLarge : Theme.of(context).textTheme.headlineMedium),
           ]),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           if (mobile)
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(children: [
-                  SizedBox(height: 300, child: _productPicker(mobile: true)),
-                  const SizedBox(height: 12),
-                  _cartPanel(mobile: true),
-                ]),
-              ),
-            )
+            Expanded(child: _mobileBillingLayout())
           else
             Expanded(child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,6 +61,211 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
             )),
         ],
       ),
+    );
+  }
+
+  /// Mobile-only layout: Product picker top, cart middle, sticky bottom panel
+  Widget _mobileBillingLayout() {
+    final cart = ref.watch(cartProvider);
+    final calc = ref.watch(invoiceCalculationProvider);
+
+    return Column(children: [
+      // ── Product search + scan row ──
+      Row(children: [
+        Expanded(
+          child: SizedBox(
+            height: 40,
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: const InputDecoration(
+                hintText: 'Search products...',
+                prefixIcon: Icon(Icons.search, size: 18),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 8),
+              ),
+              style: const TextStyle(fontSize: 14),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          height: 40,
+          child: ElevatedButton.icon(
+            onPressed: _scanAndAddProduct,
+            icon: const Icon(Icons.qr_code_scanner, size: 16),
+            label: const Text('Scan', style: TextStyle(fontSize: 13)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+          ),
+        ),
+      ]),
+      const SizedBox(height: 8),
+
+      // ── Product list (scrollable, takes available space) ──
+      Expanded(
+        child: _mobileProductAndCartList(cart),
+      ),
+
+      // ── Sticky Bottom: discount/tax + total + payment + generate ──
+      _mobileBottomPanel(cart, calc),
+    ]);
+  }
+
+  /// Combined product and cart list for mobile — products on top, cart below
+  Widget _mobileProductAndCartList(List<CartItem> cart) {
+    final productsAsync = ref.watch(productListProvider);
+    return Column(children: [
+      // Products
+      Expanded(
+        flex: 3,
+        child: productsAsync.when(
+          data: (products) {
+            final q = _searchCtrl.text.toLowerCase();
+            final filtered = q.isEmpty ? products : products.where((p) => p.name.toLowerCase().contains(q) || (p.barcode != null && p.barcode!.contains(q))).toList();
+            if (filtered.isEmpty) return const Center(child: Text('No products', style: TextStyle(color: AppColors.textHint, fontSize: 13)));
+            return ListView.separated(
+              itemCount: filtered.length,
+              separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border.withValues(alpha: 0.4)),
+              itemBuilder: (_, i) {
+                final p = filtered[i];
+                return InkWell(
+                  onTap: () => ref.read(cartProvider.notifier).addProduct(p),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    child: Row(children: [
+                      Expanded(child: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis)),
+                      Text(formatCurrency(p.price), style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.add_circle, color: AppColors.primary, size: 22),
+                    ]),
+                  ),
+                );
+              },
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(fontSize: 12))),
+        ),
+      ),
+      // Divider
+      if (cart.isNotEmpty) ...[
+        const Divider(height: 1),
+        // Cart header
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+          child: Row(children: [
+            const Icon(Icons.shopping_cart, size: 16, color: AppColors.primary),
+            const SizedBox(width: 6),
+            Text('Cart (${cart.length})', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.primary)),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => ref.read(cartProvider.notifier).clearCart(),
+              child: const Text('Clear', style: TextStyle(color: AppColors.error, fontSize: 12)),
+            ),
+          ]),
+        ),
+        // Cart items
+        Expanded(
+          flex: 2,
+          child: ListView.builder(
+            itemCount: cart.length,
+            itemBuilder: (_, i) => _mobileCartItem(cart[i]),
+          ),
+        ),
+      ],
+    ]);
+  }
+
+  Widget _mobileCartItem(CartItem item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      child: Row(children: [
+        Expanded(
+          child: Text(item.productName, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis),
+        ),
+        _qtyBtn(Icons.remove, () => ref.read(cartProvider.notifier).updateQuantity(item.productId, item.quantity - 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        ),
+        _qtyBtn(Icons.add, () => ref.read(cartProvider.notifier).updateQuantity(item.productId, item.quantity + 1)),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 60,
+          child: Text(formatCurrency(item.lineTotal), textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.accent, fontSize: 13)),
+        ),
+        SizedBox(
+          width: 24,
+          child: IconButton(
+            icon: const Icon(Icons.close, size: 14),
+            color: AppColors.error,
+            padding: EdgeInsets.zero,
+            onPressed: () => ref.read(cartProvider.notifier).removeItem(item.productId),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _mobileBottomPanel(List<CartItem> cart, InvoiceCalculation calc) {
+    return Container(
+      padding: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // TOTAL + Payment row
+        Row(children: [
+          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            const Text('TOTAL', style: TextStyle(fontSize: 9, color: AppColors.textHint, fontWeight: FontWeight.w600)),
+            Text(formatCurrency(calc.total), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.accent)),
+          ]),
+          const Spacer(),
+        ]),
+        const SizedBox(height: 8),
+        // Payment chips + Generate button
+        Row(children: [
+          ...PaymentMethod.values.map((m) {
+            final sel = ref.watch(paymentMethodProvider) == m.name;
+            final c = m == PaymentMethod.cash ? AppColors.cash : m == PaymentMethod.upi ? AppColors.upi : AppColors.card;
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: GestureDetector(
+                onTap: () => ref.read(paymentMethodProvider.notifier).state = m.name,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: sel ? c.withValues(alpha: 0.2) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: sel ? c : AppColors.border, width: sel ? 1.5 : 1),
+                  ),
+                  child: Text(m.label, style: TextStyle(color: sel ? c : AppColors.textSecondary, fontWeight: sel ? FontWeight.w700 : FontWeight.w400, fontSize: 12)),
+                ),
+              ),
+            );
+          }),
+          const Spacer(),
+          SizedBox(
+            height: 38,
+            child: ElevatedButton.icon(
+              onPressed: cart.isEmpty || _isCreating ? null : _generate,
+              icon: _isCreating
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.receipt, size: 16),
+              label: Text(_isCreating ? '...' : 'Generate', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+              ),
+            ),
+          ),
+        ]),
+      ]),
     );
   }
 
@@ -280,23 +469,6 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
             ? const Center(child: Text('Tap a product to add it here', style: TextStyle(color: AppColors.textHint)))
             : ListView.builder(itemCount: cart.length, itemBuilder: (_, i) => _cartItem(cart[i]))),
         const Divider(),
-        // Customer
-        if (mobile)
-          Column(children: [
-            TextField(controller: _customerNameCtrl, decoration: const InputDecoration(labelText: 'Customer Name', isDense: true, prefixIcon: Icon(Icons.person_outline, size: 18)), onChanged: (v) => ref.read(customerNameProvider.notifier).state = v),
-            const SizedBox(height: 10),
-            TextField(controller: _customerPhoneCtrl, decoration: const InputDecoration(labelText: 'Phone', isDense: true, prefixIcon: Icon(Icons.phone_outlined, size: 18)), onChanged: (v) => ref.read(customerPhoneProvider.notifier).state = v),
-          ])
-        else
-          Row(children: [
-            Expanded(child: TextField(controller: _customerNameCtrl, decoration: const InputDecoration(labelText: 'Customer Name', isDense: true, prefixIcon: Icon(Icons.person_outline, size: 18)), onChanged: (v) => ref.read(customerNameProvider.notifier).state = v)),
-            const SizedBox(width: 12),
-            Expanded(child: TextField(controller: _customerPhoneCtrl, decoration: const InputDecoration(labelText: 'Phone', isDense: true, prefixIcon: Icon(Icons.phone_outlined, size: 18)), onChanged: (v) => ref.read(customerPhoneProvider.notifier).state = v)),
-          ]),
-        const SizedBox(height: 12),
-        // Discount & Tax
-        _discountTaxRow(),
-        const SizedBox(height: 12),
         // Summary
         _summary(calc),
         const SizedBox(height: 12),
@@ -337,25 +509,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
     ));
   }
 
-  Widget _discountTaxRow() {
-    final discount = ref.watch(discountProvider);
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        ToggleButtons(
-          isSelected: [discount.type == 'flat', discount.type == 'percent'],
-          onPressed: (i) => ref.read(discountProvider.notifier).state = discount.copyWith(type: i == 0 ? 'flat' : 'percent'),
-          borderRadius: BorderRadius.circular(8), selectedColor: Colors.white, fillColor: AppColors.primary, color: AppColors.textSecondary,
-          constraints: const BoxConstraints(minWidth: 44, minHeight: 36),
-          children: const [Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('₹')), Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('%'))],
-        ),
-        SizedBox(width: 100, child: TextField(controller: _discountCtrl, decoration: InputDecoration(labelText: 'Discount', isDense: true, suffixText: discount.type == 'percent' ? '%' : '₹'), keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (v) => ref.read(discountProvider.notifier).state = discount.copyWith(value: double.tryParse(v) ?? 0))),
-        SizedBox(width: 100, child: TextField(controller: _taxCtrl, decoration: const InputDecoration(labelText: 'Tax %', isDense: true, suffixText: '%'), keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (v) => ref.read(taxPercentProvider.notifier).state = double.tryParse(v) ?? 0)),
-      ],
-    );
-  }
+
 
   Widget _summary(InvoiceCalculation calc) {
     return Container(
@@ -363,8 +517,6 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
       decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
       child: Column(children: [
         _row('Subtotal', formatCurrency(calc.subtotal)),
-        if (calc.discountAmount > 0) _row('Discount', '- ${formatCurrency(calc.discountAmount)}', color: AppColors.warning),
-        if (calc.taxAmount > 0) _row('Tax', '+ ${formatCurrency(calc.taxAmount)}'),
         const Divider(),
         _row('Total', formatCurrency(calc.total), isBold: true, color: AppColors.accent, fontSize: 18),
       ]),
@@ -404,14 +556,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
     setState(() => _isCreating = true);
     try {
       final calc = ref.read(invoiceCalculationProvider);
-      final discount = ref.read(discountProvider);
       final repo = ref.read(invoiceRepositoryProvider);
       final items = cart.map((c) => InvoiceItem(id: '', invoiceId: '', productId: c.productId, productName: c.productName, unitPrice: c.unitPrice, quantity: c.quantity, lineTotal: c.lineTotal, createdAt: DateTime.now())).toList();
-      await repo.createInvoice(cartItems: items, subtotal: calc.subtotal, discountType: discount.type, discountValue: discount.value, discountAmount: calc.discountAmount, taxPercent: ref.read(taxPercentProvider), taxAmount: calc.taxAmount, total: calc.total, paymentMethod: ref.read(paymentMethodProvider), customerName: _customerNameCtrl.text, customerPhone: _customerPhoneCtrl.text);
+      await repo.createInvoice(cartItems: items, subtotal: calc.subtotal, discountType: 'flat', discountValue: 0, discountAmount: 0, taxPercent: 0, taxAmount: 0, total: calc.total, paymentMethod: ref.read(paymentMethodProvider), customerName: '', customerPhone: '');
       ref.read(cartProvider.notifier).clearCart();
-      ref.read(discountProvider.notifier).state = const DiscountState();
-      ref.read(taxPercentProvider.notifier).state = 0;
-      _customerNameCtrl.clear(); _customerPhoneCtrl.clear(); _discountCtrl.text = '0'; _taxCtrl.text = '0';
       ref.read(invoiceListProvider.notifier).refresh();
       if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Invoice created successfully!'), backgroundColor: AppColors.success)); widget.onInvoiceCreated?.call(); }
     } catch (e) {

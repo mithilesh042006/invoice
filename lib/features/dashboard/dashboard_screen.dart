@@ -44,9 +44,9 @@ class DashboardScreen extends ConsumerWidget {
           // Charts
           if (mobile)
             Column(children: [
-              SizedBox(height: 240, child: _DailySalesChart()),
-              const SizedBox(height: 16),
-              SizedBox(height: 240, child: _MonthlySalesChart()),
+              SizedBox(height: 180, child: _DailySalesChart()),
+              const SizedBox(height: 10),
+              SizedBox(height: 180, child: _MonthlySalesChart()),
             ])
           else
             SizedBox(height: 280, child: Row(children: [
@@ -69,21 +69,30 @@ class _SummaryCards extends ConsumerWidget {
     final summaryAsync = ref.watch(todaySummaryProvider);
     return summaryAsync.when(
       data: (s) {
-        final cards = [
-          _StatCard(title: "Today's Sales", value: formatCurrency(s.totalSales), icon: Icons.trending_up, color: AppColors.accent, compact: mobile),
-          _StatCard(title: 'Invoices', value: '${s.invoiceCount}', icon: Icons.receipt_long, color: AppColors.primary, compact: mobile),
-          _StatCard(title: 'Avg Invoice', value: formatCurrency(s.avgValue), icon: Icons.analytics, color: AppColors.warning, compact: mobile),
-        ];
-
         if (mobile) {
-          return Column(children: [
-            for (int i = 0; i < cards.length; i++) ...[
-              cards[i],
-              if (i < cards.length - 1) const SizedBox(height: 10),
-            ],
-          ]);
+          // Compact 3-column row for mobile
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(children: [
+              _miniStat("Today's Sales", formatCurrency(s.totalSales), AppColors.accent),
+              _vertDivider(),
+              _miniStat('Invoices', '${s.invoiceCount}', AppColors.primary),
+              _vertDivider(),
+              _miniStat('Avg', formatCurrency(s.avgValue), AppColors.warning),
+            ]),
+          );
         }
 
+        final cards = [
+          _StatCard(title: "Today's Sales", value: formatCurrency(s.totalSales), icon: Icons.trending_up, color: AppColors.accent),
+          _StatCard(title: 'Invoices', value: '${s.invoiceCount}', icon: Icons.receipt_long, color: AppColors.primary),
+          _StatCard(title: 'Avg Invoice', value: formatCurrency(s.avgValue), icon: Icons.analytics, color: AppColors.warning),
+        ];
         return Row(children: [
           Expanded(child: cards[0]),
           const SizedBox(width: 16),
@@ -92,9 +101,21 @@ class _SummaryCards extends ConsumerWidget {
           Expanded(child: cards[2]),
         ]);
       },
-      loading: () => const SizedBox(height: 100, child: Center(child: CircularProgressIndicator())),
+      loading: () => const SizedBox(height: 60, child: Center(child: CircularProgressIndicator())),
       error: (e, _) => Text('Error: $e', style: const TextStyle(color: AppColors.error)),
     );
+  }
+
+  static Widget _miniStat(String label, String value, Color color) {
+    return Expanded(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 2),
+      Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10), overflow: TextOverflow.ellipsis),
+    ]));
+  }
+
+  static Widget _vertDivider() {
+    return Container(width: 1, height: 32, color: AppColors.border);
   }
 }
 
@@ -103,23 +124,22 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
-  final bool compact;
-  const _StatCard({required this.title, required this.value, required this.icon, required this.color, this.compact = false});
+  const _StatCard({required this.title, required this.value, required this.icon, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(padding: EdgeInsets.all(compact ? 14 : 20), child: Row(children: [
+      child: Padding(padding: const EdgeInsets.all(20), child: Row(children: [
         Container(
-          width: compact ? 40 : 48, height: compact ? 40 : 48,
+          width: 48, height: 48,
           decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, color: color, size: compact ? 20 : 24),
+          child: Icon(icon, color: color, size: 24),
         ),
         const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: TextStyle(color: AppColors.textSecondary, fontSize: compact ? 12 : 13)),
+          Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(color: color, fontSize: compact ? 18 : 22, fontWeight: FontWeight.w700)),
+          Text(value, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w700)),
         ])),
       ])),
     );
@@ -136,21 +156,29 @@ class _PaymentBreakdown extends ConsumerWidget {
     return breakdownAsync.when(
       data: (data) {
         final total = data.values.fold<double>(0, (a, b) => a + b);
+
+        if (mobile) {
+          // Compact inline row for mobile
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+              _payChip('Cash', data['cash'] ?? 0, AppColors.cash),
+              _payChip('UPI', data['upi'] ?? 0, AppColors.upi),
+              _payChip('Card', data['card'] ?? 0, AppColors.card),
+            ]),
+          );
+        }
+
         final cards = [
           _PaymentCard(label: 'Cash', amount: data['cash'] ?? 0, total: total, color: AppColors.cash, icon: Icons.payments),
           _PaymentCard(label: 'UPI', amount: data['upi'] ?? 0, total: total, color: AppColors.upi, icon: Icons.phone_android),
           _PaymentCard(label: 'Card', amount: data['card'] ?? 0, total: total, color: AppColors.card, icon: Icons.credit_card),
         ];
-
-        if (mobile) {
-          return Column(children: [
-            for (int i = 0; i < cards.length; i++) ...[
-              cards[i],
-              if (i < cards.length - 1) const SizedBox(height: 8),
-            ],
-          ]);
-        }
-
         return Row(children: [
           Expanded(child: cards[0]),
           const SizedBox(width: 16),
@@ -159,9 +187,17 @@ class _PaymentBreakdown extends ConsumerWidget {
           Expanded(child: cards[2]),
         ]);
       },
-      loading: () => const SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Text('Error: $e', style: const TextStyle(color: AppColors.error)),
+      loading: () => const SizedBox(height: 40, child: Center(child: CircularProgressIndicator())),
+      error: (e, _) => Text('Error: \$e', style: const TextStyle(color: AppColors.error)),
     );
+  }
+
+  static Widget _payChip(String label, double amount, Color color) {
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 2),
+      Text(formatCurrency(amount), style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700)),
+    ]);
   }
 }
 
